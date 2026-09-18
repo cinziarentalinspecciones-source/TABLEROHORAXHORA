@@ -41,6 +41,7 @@ body{
 .btn:hover{background:#2f3843}
 .btn.primary{background:var(--amber);color:#1a1200;border-color:var(--amber)}
 .off{position:fixed;top:0;left:0;right:0;background:var(--bad);color:#fff;text-align:center;font-weight:800;padding:8px;z-index:100;display:none}
+
 .wrap{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--line);overflow:hidden}
 .panel{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 .panel-hdr{
@@ -56,6 +57,7 @@ body{
 .gauge .num{font-family:var(--font);font-size:46px;line-height:1;font-variant-numeric:tabular-nums}
 .gauge .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:right}
 .gauge.g .num{color:var(--ok)} .gauge.w .num{color:var(--warn)} .gauge.b .num{color:var(--bad)}
+
 .rows{flex:1;overflow-y:auto;padding:10px}
 .opcard{
   background:var(--panel); border:1px solid var(--line); border-radius:10px;
@@ -72,6 +74,7 @@ body{
 .op-status{font-size:11px;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:5px;text-transform:uppercase}
 .op-status.curso{background:rgba(58,160,255,.18);color:var(--curso)}
 .op-status.idle{background:rgba(231,76,60,.18);color:var(--bad)}
+
 .task{margin-top:10px;background:var(--panel2);border-radius:8px;padding:10px 12px;border-left:4px solid var(--steel)}
 .task.ok{border-left-color:var(--ok)} .task.ko{border-left-color:var(--bad)} .task.curso{border-left-color:var(--curso)} .task.nc{border-left-color:#a855f7}
 .task .mo{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
@@ -83,9 +86,11 @@ body{
 .bar i{display:block;height:100%;border-radius:5px;background:var(--amber)}
 .idle-msg{margin-top:10px;background:rgba(231,76,60,.1);border:1px dashed var(--bad);border-radius:8px;padding:10px 12px;
   color:var(--bad);font-weight:800;font-size:14px;text-align:center;letter-spacing:.5px}
+
 .empty{padding:40px;text-align:center;color:var(--muted);font-weight:700}
 .spin{width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--amber);border-radius:50%;animation:rot 1s linear infinite;margin:80px auto}
 @keyframes rot{to{transform:rotate(360deg)}}
+
 #shade{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:65;display:none}
 #shade.on{display:block}
 #sheet{position:fixed;left:0;right:0;bottom:-100%;background:#1c2128;border-top:3px solid var(--amber);
@@ -100,6 +105,7 @@ body{
 #sheet select,#sheet input[type=text]{width:100%;border-radius:9px;border:1px solid var(--line);background:#12161b;color:var(--txt);padding:11px;font-size:14px;margin-bottom:8px}
 #sheet select.warn{border:2px solid var(--bad)}
 #sheet .stx{font-size:13px;font-weight:800;min-height:18px}
+
 @media(max-width:900px){
   .wrap{grid-template-columns:1fr}
   .ttl{font-size:24px} .clock .t{font-size:30px}
@@ -268,14 +274,27 @@ function fechaOffset(n){ var d = new Date(); d.setDate(d.getDate() - n); return 
 function diaAnterior(){ offsetDias++; cargar(); }
 function diaHoy(){ offsetDias = 0; cargar(); }
 
+// JSONP: esquiva el problema de CORS de Apps Script cargando la respuesta como un
+// <script> en vez de con fetch(). Google no manda siempre el header CORS que fetch()
+// necesita para leer la respuesta desde un dominio externo como GitHub Pages.
+function jsonp_(url, onData, onError){
+  var cbName = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
+  var script = document.createElement('script');
+  var limpiar = function(){ delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); };
+  window[cbName] = function(data){ limpiar(); onData(data); };
+  script.onerror = function(){ limpiar(); onError(new Error('jsonp falló')); };
+  script.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'callback=' + cbName;
+  document.body.appendChild(script);
+}
+
 function cargar(){
-  var url = URL_API + (offsetDias > 0 ? ('&fecha=' + fechaOffset(offsetDias)) : '');
-  fetch(url + '&t=' + Date.now(), { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(D){
-    if (!D.ok) throw new Error(D.error || 'error');
+  var url = URL_API + (offsetDias > 0 ? ('&fecha=' + fechaOffset(offsetDias)) : '') + '&t=' + Date.now();
+  jsonp_(url, function(D){
+    if (!D.ok) { document.getElementById('off').style.display = 'block'; return; }
     document.getElementById('off').style.display = 'none';
     try { localStorage.setItem('hxh_last', JSON.stringify(D)); } catch(e){}
     render(D);
-  }).catch(function(e){
+  }, function(){
     document.getElementById('off').style.display = 'block';
     try { var u = localStorage.getItem('hxh_last'); if (u) render(JSON.parse(u)); } catch(e2){}
   });
