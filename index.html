@@ -75,6 +75,19 @@ body{
 .op-status.curso{background:rgba(58,160,255,.18);color:var(--curso)}
 .op-status.idle{background:rgba(231,76,60,.18);color:var(--bad)}
 
+.timeline{margin-top:10px}
+.tl-hours{display:flex;font-size:9px;color:var(--muted);font-weight:700;padding-bottom:2px}
+.tl-hours span{flex:1;text-align:left}
+.tl-track{position:relative;height:30px;background:#0f1318;border-radius:6px;overflow:hidden}
+.tl-grid{position:absolute;inset:0;background-image:repeating-linear-gradient(90deg,transparent,transparent calc(100%/9 - 1px),rgba(255,255,255,.06) calc(100%/9 - 1px),rgba(255,255,255,.06) calc(100%/9))}
+.tl-seg{position:absolute;top:4px;bottom:4px;border-radius:4px;cursor:pointer;min-width:4px}
+.tl-seg.ok{background:linear-gradient(180deg,var(--ok),#1e9e5a)}
+.tl-seg.ko{background:linear-gradient(180deg,var(--bad),#a52a1e)}
+.tl-seg.curso{background:linear-gradient(180deg,var(--curso),#1e6fbf);outline:2px solid #7dd3fc;animation:cursopulse 1.6s infinite}
+.tl-seg.nc{background:repeating-linear-gradient(45deg,#a855f7,#a855f7 5px,#7c3aed 5px,#7c3aed 10px)}
+@keyframes cursopulse{0%,100%{box-shadow:0 0 0 rgba(58,160,255,0)}50%{box-shadow:0 0 8px rgba(58,160,255,.9)}}
+.tl-now{position:absolute;top:0;bottom:0;width:2px;background:#fff;z-index:5}
+.tl-now::after{content:'';position:absolute;top:-3px;left:-3px;width:8px;height:8px;border-radius:50%;background:#fff}
 .task{margin-top:10px;background:var(--panel2);border-radius:8px;padding:10px 12px;border-left:4px solid var(--steel)}
 .task.ok{border-left-color:var(--ok)} .task.ko{border-left-color:var(--bad)} .task.curso{border-left-color:var(--curso)} .task.nc{border-left-color:#a855f7}
 .task .mo{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase}
@@ -209,18 +222,51 @@ function validar(codigo){
   }).catch(function(e){ st.textContent = 'Error: ' + e; st.style.color = 'var(--bad)'; });
 }
 
-function renderOperario(o){
+var DIA_INI_MIN = 8 * 60, DIA_FIN_MIN = 17 * 60; // 08:00–17:00, igual que la jornada de planta
+function toMin_(hhmm){ if(!hhmm) return null; var p = hhmm.split(':'); return (+p[0]) * 60 + (+p[1]); }
+function pctEnDia_(min){ return Math.max(0, Math.min(100, (min - DIA_INI_MIN) / (DIA_FIN_MIN - DIA_INI_MIN) * 100)); }
+
+function renderTimeline(o, opIdx, horaActualStr, esHist){
+  var tareas = (o.real || []).slice().sort(function(a,b){ return toMin_(a.ini) - toMin_(b.ini); });
+  var h = '<div class="timeline"><div class="tl-hours">';
+  for (var hr = 8; hr <= 16; hr++) h += '<span>' + hr + '</span>';
+  h += '</div><div class="tl-track"><div class="tl-grid"></div>';
+  tareas.forEach(function(t, i){
+    var ini = toMin_(t.ini);
+    var fin = t.e === 'curso' ? toMin_(horaActualStr) : toMin_(t.fin);
+    if (ini == null || fin == null) return;
+    var left = pctEnDia_(ini), right = pctEnDia_(fin);
+    var width = Math.max(right - left, 0.6);
+    h += '<div class="tl-seg ' + t.e + '" style="left:' + left + '%;width:' + width + '%" ' +
+      'title="' + esc(t.wo) + ' (' + esc(t.ini) + '–' + esc(t.e === 'curso' ? 'ahora' : t.fin) + ')" ' +
+      'onclick="abrirValidacionByOp(this,\'' + o.nom.replace(/'/g,"\\'") + '\',' + i + ')" data-oi="' + opIdx + '" data-ti="' + i + '"></div>';
+  });
+  if (!esHist) {
+    h += '<div class="tl-now" style="left:' + pctEnDia_(toMin_(horaActualStr)) + '%"></div>';
+  }
+  h += '</div></div>';
+  return { html: h, tareasOrdenadas: tareas };
+}
+
+function renderOperario(o, opIdx, horaActualStr, esHist){
   var effCls = effClass(o.eficiencia);
-  var tareaActual = o.real && o.real.length ? o.real[o.real.length - 1] : null;
+  var tl = renderTimeline(o, opIdx, horaActualStr, esHist);
+  var tareas = tl.tareasOrdenadas;
+  // tarea "actual" = la que está en curso, o si no hay ninguna, la más reciente que ya terminó
+  var tareaActual = tareas.find(function(t){ return t.e === 'curso'; }) || (tareas.length ? tareas[tareas.length - 1] : null);
+
   var h = '<div class="opcard' + (!o.enCurso ? ' idle' : '') + '">';
   h += '<div class="op-top"><span class="op-name">' + esc(o.nom) + '</span>';
   h += '<span class="op-status ' + (o.enCurso ? 'curso' : 'idle') + '">' + (o.enCurso ? '● En tarea' : '⚠ Sin tarea') + '</span>';
   h += '<span class="op-eff"><span class="badge ' + effCls + '">' + (o.eficiencia != null ? o.eficiencia + '%' : '—') + '</span></span></div>';
 
+  h += tl.html;
+
   if (tareaActual) {
     var t = tareaActual;
+    var idxReal = tareas.indexOf(t);
     var pct = t.avance_mo != null ? t.avance_mo : 0;
-    h += '<div class="task ' + t.e + '" data-idx="' + (o.real.length - 1) + '" onclick="abrirValidacionByOp(this,\'' + o.nom.replace(/'/g,"\\'") + '\')">';
+    h += '<div class="task ' + t.e + '" onclick="abrirValidacionByOp(this,\'' + o.nom.replace(/'/g,"\\'") + '\',' + idxReal + ')" data-oi="' + opIdx + '" data-ti="' + idxReal + '">';
     h += '<div class="mo">' + esc(t.mo) + ' · ' + esc(t.ini) + (t.e === 'curso' ? '–ahora' : ('–' + esc(t.fin))) + '</div>';
     h += '<div class="wo">' + esc(t.wo) + '</div>';
     h += '<div class="meta">';
@@ -239,12 +285,12 @@ function renderOperario(o){
   return h;
 }
 
-var OPERARIOS_CACHE = {};
-function abrirValidacionByOp(el, nomOp){
-  var idx = +el.getAttribute('data-idx');
-  var o = OPERARIOS_CACHE[nomOp];
-  if (!o) return;
-  abrirValidacion(o.real[idx]);
+// tareas ORDENADAS por hora, indexadas por operario (índice global en TAREAS_ORDENADAS_CACHE)
+var TAREAS_ORDENADAS_CACHE = {};
+function abrirValidacionByOp(el, nomOp, idxOrdenado){
+  var lst = TAREAS_ORDENADAS_CACHE[nomOp];
+  if (!lst || !lst[idxOrdenado]) return;
+  abrirValidacion(lst[idxOrdenado]);
 }
 
 function render(D){
@@ -252,13 +298,14 @@ function render(D){
   document.getElementById('fechaTxt').textContent = (D.hist ? '📅 ' : '') + D.fecha + (D.hist ? ' · día cerrado' : ' · en vivo');
   document.getElementById('btnHoy').style.display = D.hist ? '' : 'none';
 
-  OPERARIOS_CACHE = {};
-  (D.operarios || []).forEach(function(o){ OPERARIOS_CACHE[o.nom] = o; });
-
   ['BSAS', 'CBA'].forEach(function(suc){
     var lst = (D.operarios || []).filter(function(o){ return o.suc === suc; });
     var rowsEl = document.getElementById('rows' + suc);
-    rowsEl.innerHTML = lst.length ? lst.map(renderOperario).join('') : '<div class="empty">Sin operarios con registro hoy en ' + suc + '</div>';
+    rowsEl.innerHTML = lst.length ? lst.map(function(o, i){
+      var tareasOrdenadas = (o.real || []).slice().sort(function(a,b){ return toMin_(a.ini) - toMin_(b.ini); });
+      TAREAS_ORDENADAS_CACHE[o.nom] = tareasOrdenadas;
+      return renderOperario(o, i, D.hora, D.hist);
+    }).join('') : '<div class="empty">Sin operarios con registro hoy en ' + suc + '</div>';
 
     var sInfo = (D.sucursales || {})[suc];
     document.getElementById('cnt' + suc).textContent = (sInfo ? sInfo.operarios : lst.length) + ' operarios';
