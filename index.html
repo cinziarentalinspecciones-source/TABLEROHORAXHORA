@@ -89,6 +89,12 @@ body[data-f="BSAS"] #secCBA, body[data-f="CBA"] #secBSAS{display:none}
 .blk{position:absolute;top:.5vh;bottom:.5vh;border-radius:.5vh;border:1px solid rgba(255,255,255,.92);cursor:pointer;overflow:hidden;padding:.2vh .35vw;display:flex;flex-direction:column;justify-content:center;min-width:.5vw;line-height:1.15}
 .blk b{font-size:1.75vh;font-weight:800;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-transform:none}
 .blk i{font-style:normal;font-size:1.55vh;font-weight:700;white-space:nowrap;opacity:.95;font-variant-numeric:tabular-nums}
+.blk.l0{top:.4vh;bottom:calc(50% + .15vh)} .blk.l1{top:calc(50% + .15vh);bottom:.4vh}
+.blk.dos{flex-direction:row;align-items:center;gap:.4vw;padding:0 .3vw}
+.blk.dos b{-webkit-line-clamp:1;font-size:1.5vh}
+.blk.dos i{font-size:1.4vh}
+.gap{position:absolute;top:.4vh;bottom:.4vh;border-radius:.4vh;border:1px dashed rgba(239,68,68,.75);background:repeating-linear-gradient(-45deg,rgba(239,68,68,.20) 0 .7vh,rgba(239,68,68,.05) .7vh 1.4vh);color:#ff8f86;font-size:1.35vh;font-weight:800;display:flex;align-items:center;justify-content:center;text-align:center;letter-spacing:.03vw;overflow:hidden;white-space:nowrap;line-height:1.1}
+.gap.gran{border-color:var(--rojo);background:repeating-linear-gradient(-45deg,rgba(239,68,68,.38) 0 .7vh,rgba(239,68,68,.10) .7vh 1.4vh);color:#fff}
 .blk.verde{background:linear-gradient(180deg,#2fd06a,#16a34a);color:#04210f}
 .blk.amarillo{background:linear-gradient(180deg,#fde047,#eab308);color:#2b2200}
 .blk.rojo{background:linear-gradient(180deg,#f2645a,#c62d22);color:#fff}
@@ -126,6 +132,13 @@ body[data-f="BSAS"] #secCBA, body[data-f="CBA"] #secBSAS{display:none}
 .alrm span{font-size:1.7vh;font-weight:800;margin-top:.3vh}
 .ackok{position:absolute;bottom:.4vh;right:.6vw;font-size:1.3vh;font-weight:800;color:var(--verde)}
 
+.oprow.ausente{background:rgba(148,163,184,.06)}
+.oprow.ausente .op-name{color:#94a3b8}
+.op-st.aus{background:rgba(148,163,184,.22);color:#cbd5e1}
+.aus-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font);font-weight:600;font-size:3.6vh;letter-spacing:.25vw;color:#94a3b8;background:repeating-linear-gradient(45deg,rgba(148,163,184,.09) 0 1vh,transparent 1vh 2vh)}
+.aus-card{flex:1;border-radius:.9vh;border:.3vh solid #64748b;background:#18202a;color:#e2e8f0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:.5vh}
+.aus-card b{font-family:var(--font);font-size:3.6vh;line-height:1.05;letter-spacing:.08vw}
+.aus-card span{font-size:1.7vh;font-weight:700;margin-top:.4vh;color:#94a3b8}
 .empty{padding:4vh;text-align:center;color:var(--muted);font-weight:700;font-size:2vh}
 .spin{width:5vh;height:5vh;border:.5vh solid var(--line);border-top-color:var(--amber);border-radius:50%;animation:rot 1s linear infinite;margin:6vh auto}
 @keyframes rot{to{transform:rotate(360deg)}}
@@ -145,6 +158,47 @@ body[data-f="BSAS"] #secCBA, body[data-f="CBA"] #secBSAS{display:none}
 #sheet select.warn{border:.3vh solid var(--rojo)}
 #sheet .stx{font-size:1.9vh;font-weight:800;min-height:2.4vh}
 #sheet .yaval{background:rgba(34,197,94,.12);border:1px solid var(--verde);border-radius:1vh;padding:1.4vh 1vw;color:var(--verde);font-weight:700;font-size:2vh}
+
+/* ===== INFORME DEL DÍA ===== */
+#informe{position:fixed;inset:0;background:#0b0e12;z-index:80;display:none;flex-direction:column;overflow:hidden;font-family:var(--fb)}
+#informe.on{display:flex}
+.inf-hdr{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:14px 22px;background:linear-gradient(180deg,#1a222b,#10151a);border-bottom:3px solid var(--amber)}
+.inf-hdr h1{font-family:var(--font);font-weight:700;font-size:24px;color:#fff}
+.inf-hdr .sub{font-size:13px;color:var(--muted);font-weight:600}
+.inf-seg{display:flex;gap:6px;margin-left:auto}
+.inf-btn{background:#27313d;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--fb)}
+.inf-btn:hover{background:#323e4c}
+.inf-btn.on{background:var(--amber);color:#1a1200;border-color:var(--amber)}
+.inf-btn.primary{background:#1d6fa5;border-color:#1d6fa5;color:#fff}
+#informe-body{flex:1;overflow-y:auto;padding:22px 28px;color:#e6eaee}
+.inf-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px}
+.inf-card{background:#171d25;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.inf-card .n{font-family:var(--font);font-weight:700;font-size:32px;line-height:1}
+.inf-card .l{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:6px}
+.inf-card.g .n{color:var(--verde)} .inf-card.w .n{color:var(--amarillo)} .inf-card.b .n{color:var(--rojo)} .inf-card.n .n{color:var(--muted)}
+.inf-sec-title{font-family:var(--font);font-weight:700;font-size:19px;color:#fff;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--steel)}
+.inf-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px}
+.inf-table th{text-align:left;color:var(--muted);font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.4px;padding:6px 10px;border-bottom:1px solid var(--steel)}
+.inf-table td{padding:7px 10px;border-bottom:1px solid #1f2933;vertical-align:top}
+.inf-table tr:hover td{background:#171d25}
+.inf-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.inf-dot.verde{background:var(--verde)} .inf-dot.amarillo{background:var(--amarillo)} .inf-dot.rojo{background:var(--rojo)}
+.inf-pill{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px}
+.inf-pill.ok{background:rgba(34,197,94,.18);color:var(--verde)}
+.inf-pill.no{background:rgba(239,68,68,.18);color:#ff8f86}
+.inf-empty{color:var(--muted);font-size:13px;padding:10px 0}
+.inf-graveRow td{background:rgba(239,68,68,.06)}
+@media print{
+  body *{visibility:hidden}
+  #informe, #informe *{visibility:visible}
+  #informe{position:static;background:#fff;color:#111}
+  .inf-hdr .inf-seg{display:none}
+  #informe-body{color:#111;overflow:visible}
+  .inf-card{background:#f3f4f6;border-color:#ccc}
+  .inf-table th{color:#555;border-color:#999}
+  .inf-table td{border-color:#ddd;color:#111}
+  .inf-sec-title{color:#111;border-color:#999}
+}
 </style>
 </head>
 <body data-f="TODAS">
@@ -169,7 +223,23 @@ body[data-f="BSAS"] #secCBA, body[data-f="CBA"] #secBSAS{display:none}
     <button class="btn" onclick="diaAnterior()">◀ Día ant.</button>
     <button class="btn on" id="btnHoy" style="display:none" onclick="diaHoy()">Hoy ▶</button>
     <button class="btn" onclick="cargar()">↻</button>
+    <button class="btn" onclick="abrirInforme()">📋 Informe</button>
   </div>
+</div>
+
+<div id="informe">
+  <div class="inf-hdr">
+    <h1 id="infTitulo">Informe del día</h1>
+    <span class="sub" id="infSub"></span>
+    <div class="inf-seg">
+      <button class="inf-btn on" data-suc="TODAS" onclick="setInfSuc('TODAS')">Todas</button>
+      <button class="inf-btn" data-suc="BSAS" onclick="setInfSuc('BSAS')">BSAS</button>
+      <button class="inf-btn" data-suc="CBA" onclick="setInfSuc('CBA')">CBA</button>
+      <button class="inf-btn primary" onclick="window.print()">🖨️ Imprimir / PDF</button>
+      <button class="inf-btn" onclick="cerrarInforme()">✕ Cerrar</button>
+    </div>
+  </div>
+  <div id="informe-body"></div>
 </div>
 
 <div class="wrap">
@@ -349,8 +419,9 @@ function ackAlarma(clave,i){
 
 var ALARMAS_INFO = {};
 function calcAlarma(o,D){
-  if(D.hist || o.sinUsuario) return null;
-  var ahora = D.nowMin, segs = D.jornada;
+  if(D.hist || o.sinUsuario || o.ausente || o.presenteAhora===false) return null;
+  var ahora = D.nowMin, segs = o.jornada || D.jornada;
+  if(!segs.length) return null;
   var dentro = segs.some(function(s){ return ahora>=s[0] && ahora<s[1]; });
   if(!dentro || o.enCurso) return null;
   var ultimo = null; o.sesiones.forEach(function(s){ if(ultimo==null || s[1]>ultimo) ultimo=s[1]; });
@@ -375,13 +446,13 @@ function actualizarAlarmas(){
 }
 
 /* ================== RENDER ================== */
-function bloqueHTML(o,b,D){
+function bloqueHTML(o,b,D,lane,dos){
   var left=pct(b.iniMin,D), right=pct(b.finMin,D), w=Math.max(right-left,0.5);
   var i = REG.push({ wof:b.wof, wo:b.tarea, mo:b.moLabel, opn:o.nom, ini:b.ini, fin:b.curso?'ahora':b.fin, obj:b.obj, rmin:b.real, estado:b.estado, curso:b.curso }) - 1;
   var txt='';
-  if(w>13) txt='<b>'+esc(b.tarea)+'</b><i>'+fmtM(b.real)+' / '+(b.obj?fmtM(b.obj):'—')+'</i>';
+  if(w>13) txt='<b>'+esc(b.tarea)+'</b><i>'+fmtM(b.real)+(dos?'':' / '+(b.obj?fmtM(b.obj):'—'))+'</i>';
   else if(w>5) txt='<i>'+fmtM(b.real)+'</i>';
-  var cls='blk '+b.estado+(b.curso?' curso':'')+(VALIDACIONES_HOY[String(b.wof)]?' validada':'');
+  var cls='blk '+b.estado+(b.curso?' curso':'')+(VALIDACIONES_HOY[String(b.wof)]?' validada':'')+(dos?(' dos l'+lane):'');
   return '<div class="'+cls+'" style="left:'+left+'%;width:'+w+'%" title="'+esc(b.tarea)+' · '+esc(b.ini)+'–'+esc(b.curso?'ahora':b.fin)+' · real '+fmtM(b.real)+' / estándar '+(b.obj?fmtM(b.obj):'—')+'" onclick="abrirVal('+i+')">'+txt+'</div>';
 }
 
@@ -391,7 +462,21 @@ function timelineHTML(o,D){
   D.jornada.forEach(function(s,idx){
     if(idx>0){ var a=pct(D.jornada[idx-1][1],D), b=pct(s[0],D); h+='<div class="lunch" style="left:'+a+'%;width:'+(b-a)+'%">ALMUERZO</div>'; }
   });
-  o.bloques.slice().sort(function(a,b){ return a.iniMin-b.iniMin; }).forEach(function(b){ h+=bloqueHTML(o,b,D); });
+  // huecos SIN tarea (rayado rojo)
+  (o.huecos||[]).forEach(function(g){
+    var a=pct(g[0],D), z=pct(g[1],D), w=z-a, min=g[1]-g[0];
+    var t = w>10 ? 'SIN TAREA '+fmtM(min) : (w>4 ? fmtM(min) : '');
+    h+='<div class="gap'+(min>=GAP_MIN?' gran':'')+'" style="left:'+a+'%;width:'+w+'%" title="Sin tarea de '+hhmm(g[0])+' a '+hhmm(g[1])+' ('+fmtM(min)+')">'+t+'</div>';
+  });
+  // tareas: si dos se pisan en el tiempo, van en dos carriles
+  var bl=o.bloques.slice().sort(function(a,b){ return a.iniMin-b.iniMin; });
+  var finLane=[-1,-1], lanes=[], dos=false;
+  bl.forEach(function(b){
+    var l = finLane[0]<=b.iniMin ? 0 : 1;
+    if(l===1) dos=true;
+    finLane[l]=Math.max(finLane[l], b.finMin); lanes.push(l);
+  });
+  bl.forEach(function(b,k){ h+=bloqueHTML(o,b,D,lanes[k],dos); });
   if(!D.hist) h+='<div class="now" style="left:'+pct(D.nowMin,D)+'%"></div>';
   return h+'</div>';
 }
@@ -404,14 +489,29 @@ function ocupacion(o,D){
   return Math.min(100,Math.round(busy*100/elapsed));
 }
 
+function ausenteHTML(o,D){
+  var n=(D.finDia-D.iniDia)/60, tl='<div class="tl">';
+  for(var k=0;k<n;k++) tl+='<div class="hl" style="left:'+(k/n*100)+'%"></div>';
+  tl+='<div class="aus-msg">AUSENTE</div></div>';
+  var h='<div class="oprow ausente">';
+  h+='<div class="c-op"><div class="op-name">'+esc(o.nom)+(o.posventa?'<span class="op-tag">POSTVENTA</span>':'')+'</div>';
+  h+='<div class="op-row"><span class="op-st aus">Ausente</span><div class="op-eff n"><b>—</b><span>'+(o.posventa?'efic. postventa':'efic.')+'</span></div></div>';
+  h+='<div class="occ"><span class="lbl">No suma a la eficiencia</span></div></div>';
+  h+='<div class="c-mid">'+tl+'<div class="ords"></div></div>';
+  h+='<div class="c-cur"><div class="aus-card"><b>OPERARIO AUSENTE</b><span>'+esc(o.ausenteMotivo||'sin fichada hoy')+'</span></div></div></div>';
+  return h;
+}
+
 function operarioHTML(o,D){
+  if(o.ausente) return ausenteHTML(o,D);
   var bl=o.bloques.slice().sort(function(a,b){ return a.iniMin-b.iniMin; });
   var actual = bl.filter(function(b){ return b.curso; })[0] || (bl.length ? bl[bl.length-1] : null);
   var al = calcAlarma(o,D);
   var alarmaActiva = al && !al.ack;
   if(al){ ALARMAS_INFO[al.clave]=al; if(!al.ack) ALARMAS.push(al); }
-  var ocup = ocupacion(o,D);
+  var ocup = (o.ocupacion!=null ? o.ocupacion : ocupacion(o,D));
   var effC = effClass(o.eficiencia);
+  var rend = o.rendimiento!=null ? o.rendimiento+'%' : '—';
 
   var cls='oprow'+(alarmaActiva ? (al.sinReg?' sinreg':' alarma') : '');
   var h='<div class="'+cls+'">';
@@ -421,10 +521,11 @@ function operarioHTML(o,D){
   h+='<div class="op-row">';
   if(o.sinUsuario) h+='<span class="op-st idle">No está en Odoo</span>';
   else if(o.enCurso) h+='<span class="op-st curso">● En tarea</span>';
+  else if(o.presenteAhora===false) h+='<span class="op-st aus">Se retiró</span>';
   else if(!o.bloques.length) h+='<span class="op-st idle">Sin registro</span>';
   else h+='<span class="op-st idle">⚠ Sin tarea</span>';
-  h+='<div class="op-eff '+effC+'"><b>'+(o.eficiencia!=null?o.eficiencia+'%':'—')+'</b><span>'+(o.posventa?'efic. postventa':'efic.')+'</span></div></div>';
-  h+='<div class="occ"><span class="lbl">Ocupación '+ocup+'%</span><div class="trk"><i style="width:'+ocup+'%"></i></div></div></div>';
+  h+='<div class="op-eff '+effC+'" title="Eficiencia = rendimiento de tareas ('+rend+') × ocupación de jornada ('+ocup+'%)"><b>'+(o.eficiencia!=null?o.eficiencia+'%':'—')+'</b><span>'+(o.posventa?'efic. postventa':'efic.')+'</span></div></div>';
+  h+='<div class="occ"><span class="lbl">Ocup. '+ocup+'% · Rend. '+rend+'</span><div class="trk"><i style="width:'+ocup+'%"></i></div></div></div>';
 
   // centro
   h+='<div class="c-mid">'+timelineHTML(o,D)+'<div class="ords'+(o.ordenes.length>2?' many':'')+'">';
@@ -519,6 +620,121 @@ function recuperarUltimo(){ try{ var u=localStorage.getItem('hxh_last'); if(u) r
 aplicarFiltro();
 cargar();
 setInterval(cargar, POLL_MS);
+
+/* ================== INFORME DEL DÍA ================== */
+var INF_SUC = 'TODAS';
+function abrirInforme(){
+  if(!ULTIMO){ return; }
+  document.getElementById('informe').classList.add('on');
+  renderInforme();
+}
+function cerrarInforme(){ document.getElementById('informe').classList.remove('on'); }
+function setInfSuc(s){
+  INF_SUC = s;
+  document.querySelectorAll('.inf-seg [data-suc]').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-suc')===s); });
+  renderInforme();
+}
+
+function renderInforme(){
+  var D = ULTIMO; if(!D) return;
+  document.getElementById('infTitulo').textContent = 'Informe del día · ' + D.fecha;
+  document.getElementById('infSub').textContent = D.hist ? ('cerrado · hasta las ' + hhmm(D.finDia)) : ('en vivo · hasta las ' + D.hora);
+
+  var ops = (D.operarios||[]).filter(function(o){ return INF_SUC==='TODAS' || o.suc===INF_SUC; });
+  var opsConEf = ops.filter(function(o){ return !o.posventa && !o.ausente && o.eficiencia!=null; });
+  var efProm = opsConEf.length ? Math.round(opsConEf.reduce(function(a,o){return a+o.eficiencia;},0)/opsConEf.length) : null;
+  var ausentes = ops.filter(function(o){ return o.ausente; });
+
+  // todas las tareas (bloques) de los operarios filtrados, ordenadas por hora
+  var tareas = [];
+  ops.forEach(function(o){
+    (o.bloques||[]).forEach(function(b){
+      tareas.push({ op:o.nom, suc:o.suc, posventa:o.posventa, ini:b.ini, fin:b.curso?'ahora':b.fin, curso:b.curso,
+        tarea:b.tarea, mo:b.moLabel, obj:b.obj, real:b.real, over:b.over, estado:b.estado, wof:b.wof });
+    });
+  });
+  tareas.sort(function(a,b){ return toMin(a.ini)-toMin(b.ini); });
+
+  var cVerde=0,cAmarillo=0,cRojo=0;
+  tareas.forEach(function(t){ if(t.estado==='verde')cVerde++; else if(t.estado==='amarillo')cAmarillo++; else cRojo++; });
+
+  var h = '';
+  // --- tarjetas resumen ---
+  h += '<div class="inf-cards">';
+  h += '<div class="inf-card '+effClass(efProm)+'"><div class="n">'+(efProm!=null?efProm+'%':'—')+'</div><div class="l">Eficiencia promedio'+(INF_SUC!=='TODAS'?(' '+INF_SUC):'')+'</div></div>';
+  h += '<div class="inf-card"><div class="n">'+ops.length+'</div><div class="l">Operarios</div></div>';
+  h += '<div class="inf-card '+(ausentes.length?'b':'g')+'"><div class="n">'+ausentes.length+'</div><div class="l">Ausentes</div></div>';
+  h += '<div class="inf-card"><div class="n">'+tareas.length+'</div><div class="l">Tareas registradas</div></div>';
+  h += '<div class="inf-card g"><div class="n">'+cVerde+'</div><div class="l">En tiempo</div></div>';
+  h += '<div class="inf-card w"><div class="n">'+cAmarillo+'</div><div class="l">Hasta +15 min</div></div>';
+  h += '<div class="inf-card b"><div class="n">'+cRojo+'</div><div class="l">Más de +15 min</div></div>';
+  h += '</div>';
+
+  // --- por sucursal (si se ve "Todas") ---
+  if(INF_SUC==='TODAS'){
+    h += '<div class="inf-sec-title">Eficiencia por sucursal</div>';
+    h += '<table class="inf-table"><tr><th>Sucursal</th><th>Operarios</th><th>Eficiencia</th></tr>';
+    ['BSAS','CBA'].forEach(function(s){
+      var si=(D.sucursales||{})[s]||{};
+      h+='<tr><td>'+s+'</td><td>'+(si.operarios!=null?si.operarios:'—')+'</td><td>'+(si.eficiencia!=null?si.eficiencia+'%':'—')+'</td></tr>';
+    });
+    if(D.postventa) h+='<tr><td>Postventa CBA ('+esc(D.postventa.nom)+')</td><td>1</td><td>'+(D.postventa.eficiencia!=null?D.postventa.eficiencia+'%':'—')+'</td></tr>';
+    h += '</table>';
+  }
+
+  // --- operarios ---
+  h += '<div class="inf-sec-title">Operarios</div>';
+  h += '<table class="inf-table"><tr><th>Nombre</th><th>Sucursal</th><th>Estado</th><th>Ocupación</th><th>Rendimiento</th><th>Eficiencia</th></tr>';
+  ops.forEach(function(o){
+    var estado = o.ausente ? ('Ausente'+(o.ausenteMotivo?(' ('+esc(o.ausenteMotivo)+')'):''))
+      : (o.presenteAhora===false ? 'Se retiró' : (o.enCurso ? 'En tarea' : (o.bloques&&o.bloques.length ? 'Sin tarea ahora' : 'Sin registro')));
+    h+='<tr><td>'+esc(o.nom)+(o.posventa?' <span class="inf-pill ok">POSTVENTA</span>':'')+'</td><td>'+esc(o.suc)+'</td><td>'+estado+'</td>' +
+       '<td>'+(o.ocupacion!=null?o.ocupacion+'%':'—')+'</td><td>'+(o.rendimiento!=null?o.rendimiento+'%':'—')+'</td>' +
+       '<td>'+(o.eficiencia!=null?o.eficiencia+'%':'—')+'</td></tr>';
+  });
+  h += '</table>';
+
+  // --- todas las tareas del día ---
+  h += '<div class="inf-sec-title">Tareas del día'+(INF_SUC!=='TODAS'?(' · '+INF_SUC):'')+'</div>';
+  if(!tareas.length){ h += '<div class="inf-empty">Sin tareas registradas.</div>'; }
+  else {
+    h += '<table class="inf-table"><tr><th>Hora</th><th>Operario</th><th>Orden</th><th>Tarea</th><th>Estándar</th><th>Real</th><th>Estado</th><th>Validación</th></tr>';
+    tareas.forEach(function(t){
+      var val = VALIDACIONES_HOY[String(t.wof)];
+      h+='<tr><td>'+esc(t.ini)+'–'+esc(t.fin)+'</td><td>'+esc(t.op)+'</td><td>'+esc(t.mo)+'</td><td>'+esc(t.tarea)+'</td>' +
+         '<td>'+(t.obj?fmtM(t.obj):'—')+'</td><td>'+fmtM(t.real)+'</td>' +
+         '<td><span class="inf-dot '+t.estado+'"></span>'+(t.curso?'En curso':(t.estado==='verde'?'En tiempo':(t.estado==='amarillo'?'+15m':'+15m grave')))+'</td>' +
+         '<td>'+(val?('<span class="inf-pill ok">'+esc(val.validacion)+'</span>'+(val.causal?(' '+esc(val.causal)):'')):'<span class="inf-pill no">sin validar</span>')+'</td></tr>';
+    });
+    h += '</table>';
+  }
+
+  // --- ineficiencias graves ---
+  var graves = tareas.filter(function(t){ return t.estado==='rojo'; });
+  h += '<div class="inf-sec-title">Ineficiencias graves (+15 min sobre el estándar)</div>';
+  if(!graves.length){ h += '<div class="inf-empty">No hubo tareas con desvío grave.</div>'; }
+  else {
+    h += '<table class="inf-table"><tr><th>Hora</th><th>Operario</th><th>Tarea</th><th>Estándar</th><th>Real</th><th>Desvío</th><th>Causal</th><th>Nota</th></tr>';
+    graves.forEach(function(t){
+      var val = VALIDACIONES_HOY[String(t.wof)];
+      h+='<tr class="inf-graveRow"><td>'+esc(t.ini)+'–'+esc(t.fin)+'</td><td>'+esc(t.op)+'</td><td>'+esc(t.tarea)+'</td>' +
+         '<td>'+(t.obj?fmtM(t.obj):'—')+'</td><td>'+fmtM(t.real)+'</td><td>+'+fmtM(t.over)+'</td>' +
+         '<td>'+(val&&val.causal?esc(val.causal):'<span class="inf-pill no">sin validar</span>')+'</td>' +
+         '<td>'+(val&&val.nota?esc(val.nota):'—')+'</td></tr>';
+    });
+    h += '</table>';
+  }
+
+  // --- ausentes ---
+  if(ausentes.length){
+    h += '<div class="inf-sec-title">Ausentes</div>';
+    h += '<table class="inf-table"><tr><th>Nombre</th><th>Sucursal</th><th>Motivo</th></tr>';
+    ausentes.forEach(function(o){ h+='<tr><td>'+esc(o.nom)+'</td><td>'+esc(o.suc)+'</td><td>'+esc(o.ausenteMotivo||'—')+'</td></tr>'; });
+    h += '</table>';
+  }
+
+  document.getElementById('informe-body').innerHTML = h;
+}
 </script>
 </body>
 </html>
