@@ -103,8 +103,7 @@ body[data-f="BSAS"] #secCBA, body[data-f="CBA"] #secBSAS{display:none}
 .blk.validada::before{content:'✓';position:absolute;top:0;right:.2vw;font-size:1.8vh;font-weight:900;color:#fff;text-shadow:0 0 3px #000;z-index:2}
 .tl .now{position:absolute;top:0;bottom:0;width:.25vw;background:#fff;z-index:6;box-shadow:0 0 6px #fff}
 .tl .now::before{content:'AHORA';position:absolute;top:0;left:.3vw;font-size:1.2vh;font-weight:800;background:#fff;color:#111;padding:0 .3vw;border-radius:.3vh}
-
-.ords{display:flex;flex-wrap:nowrap;gap:.5vw;flex:0 0 auto;overflow:hidden}
+.ords{display:flex;flex-wrap:wrap;gap:.5vh .5vw;flex:0 0 auto;overflow:hidden;max-height:7.6vh}
 .ord{position:relative;display:flex;align-items:center;gap:.45vw;background:#151b22;border:1px solid var(--line);border-radius:.8vh;padding:.3vh .5vw;font-size:1.7vh;font-weight:700;overflow:hidden;flex:0 1 auto;min-width:0;white-space:nowrap}
 .ord .fill{position:absolute;left:0;top:0;bottom:0;background:rgba(245,165,36,.30)}
 .ord.act{border-color:var(--amber)}
@@ -271,7 +270,7 @@ body[data-f="BSAS"] #secCBA, body[data-f="CBA"] #secBSAS{display:none}
 
 <script>
 /* ================== CONFIG ================== */
-var URL_BASE = 'https://script.google.com/macros/s/AKfycbwWHY-0FwOIy8vbiMt9c66OC_eDtagsQxvcIJtmCGJkho2nfbGMOsi41szG4OtHEVOU/exec';
+var URL_BASE = 'https://script.google.com/macros/s/AKfycbx3sxF_C77cwFct4wbPI2dyfwf4DsO2J3MMfYR_zh4g6rKsZqELCNS-J32qxMXPBdh7MQ/exec';
 var URL_API = URL_BASE + '?view=horaxhora';
 var URL_VAL = URL_BASE + '?view=validaciones';
 var GAP_MIN = 15;          // minutos sin tarea para disparar la alarma
@@ -532,8 +531,7 @@ function operarioHTML(o,D){
   if(!o.ordenes.length) h+='<span class="ord"><span class="lb">Sin órdenes iniciadas hoy</span></span>';
   o.ordenes.forEach(function(ord){
     var act = actual && actual.mo===ord.mo;
-    var partes = String(ord.label).split(' #'), base = partes[0], cod = partes[1] ? ' #'+partes[1] : '';
-    h+='<span class="ord'+(act?' act':'')+'" title="'+esc(ord.label)+' · avance de la orden: '+ord.avance+'%"><span class="fill" style="width:'+ord.avance+'%"></span><span class="lb">ORDEN</span><span class="n">'+esc(base)+'</span>'+(cod?'<span class="c">'+esc(cod)+'</span>':'')+'<span class="p">'+ord.avance+'%</span></span>';
+    var lbl = String(ord.label), ix = lbl.lastIndexOf(' #'), base = ix>0 ? lbl.substring(0,ix) : lbl, cod = ix>0 ? lbl.substring(ix) : '';    h+='<span class="ord'+(act?' act':'')+'" title="'+esc(ord.label)+' · avance de la orden: '+ord.avance+'%"><span class="fill" style="width:'+ord.avance+'%"></span><span class="lb">ORDEN</span><span class="n">'+esc(base)+'</span>'+(cod?'<span class="c">'+esc(cod)+'</span>':'')+'<span class="p">'+ord.avance+'%</span></span>';
   });
   h+='</div></div>';
 
