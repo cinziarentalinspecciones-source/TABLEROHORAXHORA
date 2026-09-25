@@ -223,7 +223,7 @@ body[data-f="BSAS"] #secCBA, body[data-f="CBA"] #secBSAS{display:none}
   <div class="seg">
     <button class="btn" onclick="diaAnterior()">◀ Día ant.</button>
     <button class="btn on" id="btnHoy" style="display:none" onclick="diaHoy()">Hoy ▶</button>
-    <button class="btn" onclick="cargar()">↻</button>
+    <button class="btn" onclick="cargar(true)">↻</button>
     <button class="btn" onclick="abrirInforme()">📋 Informe</button>
     <button class="btn" onclick="pantallaCompleta()">⛶ Pantalla completa</button>
   </div>
@@ -277,7 +277,6 @@ var URL_BASE = 'https://script.google.com/macros/s/AKfycbwWHY-0FwOIy8vbiMt9c66OC
 var URL_API = URL_BASE + '?view=horaxhora';
 var URL_VAL = URL_BASE + '?view=validaciones';
 var GAP_MIN = 15;          // minutos sin tarea para disparar la alarma
-var POLL_MS = 60000;       // refresco de datos (cada 60 s: cuida el tope diario de tiempo de Apps Script)
 
 var CAUSALES = ['Búsqueda de material/pieza', 'Falta de atención del operario', 'Falta de herramienta', 'Complicación en desarme/armado'];
 var VALS = [
@@ -300,7 +299,7 @@ function effClass(v){ if(v==null) return 'n'; if(v>=85) return 'g'; if(v>=60) re
 function jornadaMin(a,b,segs){ var t=0; segs.forEach(function(s){ var x=Math.max(a,s[0]), y=Math.min(b,s[1]); if(y>x) t+=y-x; }); return t; }
 function pct(min,D){ return Math.max(0,Math.min(100,(min-D.iniDia)/(D.finDia-D.iniDia)*100)); }
 
-// JSONP con tiempo límite: si el servidor no responde (o responde algo que no es un script) avisa en vez de esperar para siempre
+// JSONP con tiempo límite: si el servidor no responde avisa en vez de esperar para siempre
 function jsonp_(url,onData,onError){
   var cb='jsonp_cb_'+(new Date().getTime())+'_'+Math.floor(Math.random()*1e6);
   var sc=document.createElement('script');
@@ -308,7 +307,7 @@ function jsonp_(url,onData,onError){
   var limpiar=function(){ terminado=true; if(timer) clearTimeout(timer); try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(sc.parentNode) sc.parentNode.removeChild(sc); };
   window[cb]=function(d){ if(terminado) return; limpiar(); onData(d); };
   sc.onerror=function(){ if(terminado) return; limpiar(); onError(new Error('sin respuesta del servidor')); };
-  timer=setTimeout(function(){ if(terminado) return; limpiar(); onError(new Error('el servidor tardó más de 25 s en responder')); }, 25000);
+  timer=setTimeout(function(){ if(terminado) return; limpiar(); onError(new Error('el servidor tardó más de 60 s en responder')); }, 60000);
   sc.src=url+(url.indexOf('?')>-1?'&':'?')+'callback='+cb;
   document.body.appendChild(sc);
 }
@@ -348,10 +347,21 @@ var actx=null, alarmTimer=null;
 function ensureAudio(){ try{ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); }catch(e){} }
 function beep(){
   if(!actx||actx.state!=='running') return;
-  try{ var o=actx.createOscillator(), g=actx.createGain(); o.type='square'; o.frequency.value=880; o.connect(g); g.connect(actx.destination);
-    var t=actx.currentTime; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.45); o.start(t); o.stop(t+0.5); }catch(e){}
+  try{
+    var t0=actx.currentTime;
+    var comp=actx.createDynamicsCompressor(); comp.connect(actx.destination);
+    var tonos=[1000,1500,1000,1500,1000,1500];
+    tonos.forEach(function(f,i){
+      var t=t0+i*0.22;
+      var o=actx.createOscillator(), g=actx.createGain();
+      o.type='square'; o.frequency.value=f; o.connect(g); g.connect(comp);
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(1.0,t+0.01); g.gain.setValueAtTime(1.0,t+0.19); g.gain.linearRampToValueAtTime(0.0001,t+0.21);
+      o.start(t); o.stop(t+0.22);
+    });
+  }catch(e){}
 }
 document.addEventListener('click', ensureAudio);
+document.addEventListener('keydown', ensureAudio);
 
 /* ================== ESTADO ================== */
 var REG = [];                 // bloques clickeables
@@ -408,6 +418,7 @@ function validar(codigo){
     st.textContent = '✓ Guardado'; st.style.color = 'var(--verde)';
     VALIDACIONES_HOY[String(CUR.wof)] = { validacion:codigo, causal:causal };
     setTimeout(function(){ cerrarDet(); if(ULTIMO) render(ULTIMO); }, 600);
+    setTimeout(function(){ cargar(true); }, 1500);
   }).catch(function(e){ st.textContent = 'Error: ' + e; st.style.color = 'var(--rojo)'; });
 }
 
@@ -451,10 +462,9 @@ function calcAlarma(o,D){
 }
 
 function actualizarAlarmas(){
-  var conSonido = ALARMAS.filter(function(a){ return !a.sinReg; }).length;
   var bar = document.getElementById('sndbar');
-  if(conSonido>0){
-    if(!alarmTimer){ alarmTimer=setInterval(function(){ ensureAudio(); beep(); },2500); ensureAudio(); beep(); }
+  if(ALARMAS.length>0){
+    if(!alarmTimer){ alarmTimer=setInterval(function(){ ensureAudio(); beep(); },2000); ensureAudio(); beep(); }
     bar.style.display = (actx && actx.state==='running') ? 'none' : 'block';
   } else {
     if(alarmTimer){ clearInterval(alarmTimer); alarmTimer=null; }
@@ -603,7 +613,6 @@ function render(D){
     var s = (D.sucursales||{})[suc] || {};
     var g = gaugeHTML(s.eficiencia,'Eficiencia<br>sucursal '+suc);
     if(suc==='CBA' && D.postventa) g += gaugeHTML(D.postventa.eficiencia,'Eficiencia<br>postventa CBA');
-    // (dos líneas cortas: el alto del encabezado se mantiene chico)
     document.getElementById('gauges'+suc).innerHTML = g;
   });
   actualizarAlarmas();
@@ -613,40 +622,75 @@ function render(D){
 var offsetDias = 0;
 function pad2(n){ return (n<10?'0':'')+n; }
 function fechaOffset(n){ var d=new Date(); d.setDate(d.getDate()-n); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
-function diaAnterior(){ offsetDias++; cargar(); }
-function diaHoy(){ offsetDias=0; cargar(); }
+function diaAnterior(){ offsetDias++; CARGANDO=false; cargar(); }
+function diaHoy(){ offsetDias=0; CARGANDO=false; cargar(); }
 
 function mostrarError(msg){
   var el=document.getElementById('off'); el.textContent='⚠ SIN CONEXIÓN — '+msg+' — mostrando últimos datos'; el.style.display='block';
 }
 
-function cargar(){
+var CARGANDO=false, CARGA_T=0, ULTIMO_OK=(new Date()).getTime();
+
+function cargar(fresh){
+  fresh = (fresh===true);
+  var ahoraMs=(new Date()).getTime();
+  if(CARGANDO && !fresh && (ahoraMs-CARGA_T)<70000) return;
+  CARGANDO=true; CARGA_T=ahoraMs;
   var f = offsetDias>0 ? fechaOffset(offsetDias) : '';
-  var url = URL_API + (f?('&fecha='+f):'') + '&t=' + (new Date().getTime());
-  estadoCarga('Pidiendo los datos a Odoo…');
+  var url = URL_API + (f?('&fecha='+f):'') + (fresh?'&fresh=1':'') + '&t=' + ahoraMs;
   jsonp_(url, function(D){
+    CARGANDO=false;
     if(!D.ok){ mostrarError(D.error||'error del servidor'); estadoCarga('El servidor respondió con un error: '+(D.error||'desconocido')); if(!ULTIMO) recuperarUltimo(); return; }
+    ULTIMO_OK=(new Date()).getTime();
     document.getElementById('off').style.display='none';
     try{ localStorage.setItem('hxh_last', JSON.stringify(D)); }catch(e){}
-    // el servidor ya manda las validaciones dentro de la misma respuesta; si no vienen, se piden aparte
-    if(D.validaciones){
-      VALIDACIONES_HOY = {};
-      D.validaciones.forEach(function(v){ VALIDACIONES_HOY[String(v.wof)] = v; });
-      render(D);
-    } else {
-      jsonp_(URL_VAL + '&fecha=' + D.fecha + '&t=' + (new Date().getTime()), function(V){
-        VALIDACIONES_HOY = {};
-        if(V.ok) (V.validaciones||[]).forEach(function(v){ VALIDACIONES_HOY[String(v.wof)] = v; });
-        render(D);
-      }, function(){ render(D); });
-    }
-  }, function(e){ mostrarError(e.message); estadoCarga('No se pudo conectar: '+e.message); if(!ULTIMO) recuperarUltimo(); });
+    if(ULTIMO && ULTIMO.fecha!==D.fecha) VALIDACIONES_HOY={};
+    (D.validaciones||[]).forEach(function(v){ VALIDACIONES_HOY[String(v.wof)] = v; });
+    render(D);
+    // si lo guardado en el servidor tiene más de 20 s, se pide el dato nuevo a Odoo en segundo plano
+    if(!fresh && !D.hist && D.edad>20) setTimeout(function(){ cargar(true); },50);
+  }, function(e){ CARGANDO=false; mostrarError(e.message); estadoCarga('No se pudo conectar: '+e.message); if(!ULTIMO) recuperarUltimo(); });
 }
-function recuperarUltimo(){ try{ var u=localStorage.getItem('hxh_last'); if(u) render(JSON.parse(u)); }catch(e){} }
+function recuperarUltimo(){
+  try{
+    var u=JSON.parse(localStorage.getItem('hxh_last')||'null');
+    if(u && u.fecha===fechaOffset(0)) render(u);
+  }catch(e){}
+}
+
+// validaciones y avisos compartidos entre pantallas (se consulta cada 5 s, es una lectura liviana)
+var SINC_ENV=false, SINC_T=0;
+function sincronizar(){
+  if(!ULTIMO) return;
+  var ahoraMs=(new Date()).getTime();
+  if(SINC_ENV && (ahoraMs-SINC_T)<30000) return;
+  SINC_ENV=true; SINC_T=ahoraMs;
+  var fecha = ULTIMO.fecha;
+  jsonp_(URL_BASE+'?view=estado&fecha='+fecha+'&t='+ahoraMs, function(E){
+    SINC_ENV=false;
+    if(!E || !E.ok || !ULTIMO || E.fecha!==ULTIMO.fecha) return;
+    var cambio=false;
+    (E.validaciones||[]).forEach(function(v){
+      var k=String(v.wof);
+      if(!VALIDACIONES_HOY[k]){ VALIDACIONES_HOY[k]=v; cambio=true; }
+    });
+    (E.acks||[]).forEach(function(a){
+      var k=fecha+'|'+a.operario+'|'+toMin(a.desde);
+      if(!ACKS[k]){ ACKS[k]={accion:a.accion,ts:Date.now()}; cambio=true; }
+    });
+    if(cambio){
+      try{ localStorage.setItem('hxh_acks', JSON.stringify(ACKS)); }catch(e){}
+      render(ULTIMO);
+    }
+  }, function(){ SINC_ENV=false; });
+}
 
 aplicarFiltro();
 cargar();
-setInterval(cargar, POLL_MS);
+setInterval(function(){ cargar(false); }, 10000);
+setInterval(sincronizar, 5000);
+// si pasan 5 minutos sin datos buenos, la página se recarga sola
+setInterval(function(){ if(((new Date()).getTime()-ULTIMO_OK)>300000){ location.reload(); } }, 30000);
 
 /* ================== PANTALLA COMPLETA ================== */
 function pantallaCompleta(){
@@ -775,29 +819,45 @@ function renderInforme(){
 
   document.getElementById('informe-body').innerHTML = h;
 }
-  
-/* ================== v12: CARGA INSTANTÁNEA ================== */
-function cargar(fresh){
-  fresh = (fresh===true);
-  var ahoraMs=(new Date()).getTime();
-  if(CARGANDO && !fresh && (ahoraMs-CARGA_T)<70000) return;
-  CARGANDO=true; CARGA_T=ahoraMs;
-  var f = offsetDias>0 ? fechaOffset(offsetDias) : '';
-  var url = URL_API + (f?('&fecha='+f):'') + (fresh?'&fresh=1':'') + '&t=' + ahoraMs;
-  jsonp_(url, function(D){
-    CARGANDO=false;
-    if(!D.ok){ mostrarError(D.error||'error del servidor'); estadoCarga('El servidor respondió con un error: '+(D.error||'desconocido')); if(!ULTIMO) recuperarUltimo(); return; }
-    ULTIMO_OK=(new Date()).getTime();
-    document.getElementById('off').style.display='none';
-    try{ localStorage.setItem('hxh_last', JSON.stringify(D)); }catch(e){}
-    if(ULTIMO && ULTIMO.fecha!==D.fecha) VALIDACIONES_HOY={};
-    (D.validaciones||[]).forEach(function(v){ VALIDACIONES_HOY[String(v.wof)] = v; });
-    render(D);
-    // si lo guardado tiene más de 20 s, se pide el dato nuevo a Odoo en segundo plano (ya se está viendo lo anterior)
-    if(!fresh && !D.hist && D.edad>20) setTimeout(function(){ cargar(true); },50);
-  }, function(e){ CARGANDO=false; mostrarError(e.message); estadoCarga('No se pudo conectar: '+e.message); if(!ULTIMO) recuperarUltimo(); });
-}
-setInterval(function(){ cargar(false); }, 10000);
+
+/* ================== INFORME: SUBIR / BAJAR / AUTOMÁTICO ================== */
+(function(){
+  var st=document.createElement('style');
+  st.textContent='#informe-body{scroll-behavior:smooth}.inf-btn.big{font-size:18px;padding:10px 20px}';
+  document.head.appendChild(st);
+  var seg=document.querySelector('.inf-seg'); if(!seg) return;
+  function cuerpo(){ return document.getElementById('informe-body'); }
+  function paso(dir){ var b=cuerpo(); b.style.scrollBehavior='smooth'; b.scrollTop = b.scrollTop + dir*Math.round(b.clientHeight*0.8); }
+  var auto=null, bAuto;
+  function pararAuto(){ if(auto){ clearInterval(auto); auto=null; } if(bAuto){ bAuto.textContent='▶ Auto'; bAuto.classList.remove('on'); } }
+  function iniciarAuto(){
+    var b=cuerpo(), espera=0;
+    b.style.scrollBehavior='auto';
+    bAuto.textContent='⏸ Auto'; bAuto.classList.add('on');
+    auto=setInterval(function(){
+      if(espera>0){ espera--; return; }
+      var antes=b.scrollTop;
+      b.scrollTop = antes + 2;
+      if(b.scrollTop===antes){ espera=60; if(antes>0){ b.scrollTop=0; } else { pararAuto(); } }
+    },30);
+  }
+  function mk(txt,fn){ var x=document.createElement('button'); x.className='inf-btn big'; x.textContent=txt; x.onclick=fn; return x; }
+  var bSubir=mk('▲ Subir',function(){ pararAuto(); paso(-1); });
+  var bBajar=mk('▼ Bajar',function(){ pararAuto(); paso(1); });
+  bAuto=mk('▶ Auto',function(){ if(auto) pararAuto(); else iniciarAuto(); });
+  seg.insertBefore(bAuto,seg.firstChild);
+  seg.insertBefore(bBajar,seg.firstChild);
+  seg.insertBefore(bSubir,seg.firstChild);
+  document.addEventListener('keydown',function(e){
+    if(!document.getElementById('informe').classList.contains('on')) return;
+    var k=e.key||'';
+    if(k==='ArrowDown'||k==='PageDown'||k===' '){ pararAuto(); paso(1); e.preventDefault(); }
+    else if(k==='ArrowUp'||k==='PageUp'){ pararAuto(); paso(-1); e.preventDefault(); }
+    else if(k==='Escape'){ pararAuto(); cerrarInforme(); }
+  });
+  var _cerrar=cerrarInforme;
+  cerrarInforme=function(){ pararAuto(); _cerrar(); };
+})();
 </script>
 </body>
 </html>
