@@ -775,6 +775,29 @@ function renderInforme(){
 
   document.getElementById('informe-body').innerHTML = h;
 }
+  
+/* ================== v12: CARGA INSTANTÁNEA ================== */
+function cargar(fresh){
+  fresh = (fresh===true);
+  var ahoraMs=(new Date()).getTime();
+  if(CARGANDO && !fresh && (ahoraMs-CARGA_T)<70000) return;
+  CARGANDO=true; CARGA_T=ahoraMs;
+  var f = offsetDias>0 ? fechaOffset(offsetDias) : '';
+  var url = URL_API + (f?('&fecha='+f):'') + (fresh?'&fresh=1':'') + '&t=' + ahoraMs;
+  jsonp_(url, function(D){
+    CARGANDO=false;
+    if(!D.ok){ mostrarError(D.error||'error del servidor'); estadoCarga('El servidor respondió con un error: '+(D.error||'desconocido')); if(!ULTIMO) recuperarUltimo(); return; }
+    ULTIMO_OK=(new Date()).getTime();
+    document.getElementById('off').style.display='none';
+    try{ localStorage.setItem('hxh_last', JSON.stringify(D)); }catch(e){}
+    if(ULTIMO && ULTIMO.fecha!==D.fecha) VALIDACIONES_HOY={};
+    (D.validaciones||[]).forEach(function(v){ VALIDACIONES_HOY[String(v.wof)] = v; });
+    render(D);
+    // si lo guardado tiene más de 20 s, se pide el dato nuevo a Odoo en segundo plano (ya se está viendo lo anterior)
+    if(!fresh && !D.hist && D.edad>20) setTimeout(function(){ cargar(true); },50);
+  }, function(e){ CARGANDO=false; mostrarError(e.message); estadoCarga('No se pudo conectar: '+e.message); if(!ULTIMO) recuperarUltimo(); });
+}
+setInterval(function(){ cargar(false); }, 10000);
 </script>
 </body>
 </html>
