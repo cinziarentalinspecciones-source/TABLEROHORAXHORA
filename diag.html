@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnóstico Hora a Hora</title>
+<style>
+body{font-family:Arial,sans-serif;background:#10151a;color:#eee;margin:0;padding:24px;max-width:900px}
+h1{font-size:26px;margin:0 0 6px}
+p{color:#9aa8b8;margin:0 0 18px}
+button{font-size:22px;font-weight:bold;padding:16px 32px;border:0;border-radius:10px;background:#f5a524;color:#111;cursor:pointer}
+button:disabled{opacity:.5}
+.t{margin-top:18px;border-left:8px solid #465468;background:#1c2530;padding:12px 16px;border-radius:6px}
+.t b{font-size:19px;display:block;margin-bottom:4px}
+.t.ok{border-color:#22c55e}.t.mal{border-color:#ef4444}.t.aviso{border-color:#facc15}
+.t span{display:block;font-size:16px;color:#cfd8e3;white-space:pre-wrap;word-break:break-word}
+#resumen{margin-top:26px;font-size:20px;font-weight:bold;line-height:1.4}
+</style>
+</head>
+<body>
+<h1>Diagnóstico del tablero</h1>
+<p>Tocá el botón, esperá hasta 90 segundos y mandame una captura de pantalla de todo el resultado.</p>
+<button id="go" onclick="correr()">▶ Empezar diagnóstico</button>
+<div id="out"></div>
+<div id="resumen"></div>
+
+<script>
+var URL_BASE = 'https://script.google.com/macros/s/AKfycbwWHY-0FwOIy8vbiMt9c66OC_eDtagsQxvcIJtmCGJkho2nfbGMOsi41szG4OtHEVOU/exec';
+var INDEX_PATH = 'index.html';
+
+function jsonp(url, ms){
+  return new Promise(function(res){
+    var t0=Date.now(), cb='cb_'+t0+'_'+Math.floor(Math.random()*1e6), sc=document.createElement('script'), fin=false;
+    function listo(r){ if(fin) return; fin=true; clearTimeout(tm); try{delete window[cb];}catch(e){window[cb]=undefined;} if(sc.parentNode) sc.parentNode.removeChild(sc); r.seg=Math.round((Date.now()-t0)/100)/10; res(r); }
+    var tm=setTimeout(function(){ listo({falla:'TIMEOUT: no respondió en '+Math.round(ms/1000)+' s'}); }, ms);
+    window[cb]=function(d){ listo({datos:d}); };
+    sc.onerror=function(){ listo({falla:'La dirección del script no devolvió un programa válido (suele ser: no está publicado como "Cualquier usuario", o pide iniciar sesión de Google, o la URL no existe)'}); };
+    sc.src=url+(url.indexOf('?')>-1?'&':'?')+'callback='+cb+'&t='+t0;
+    document.body.appendChild(sc);
+  });
+}
+function caja(tipo,titulo,texto){
+  var d=document.createElement('div'); d.className='t '+tipo;
+  d.innerHTML='<b></b><span></span>'; d.children[0].textContent=titulo; d.children[1].textContent=texto;
+  document.getElementById('out').appendChild(d);
+}
+async function correr(){
+  var b=document.getElementById('go'); b.disabled=true; b.textContent='Probando…';
+  document.getElementById('out').innerHTML=''; document.getElementById('resumen').textContent='';
+  var problemas=[];
+
+  // 1. página index.html
+  try{
+    var tx=await fetch(INDEX_PATH+'?t='+Date.now()).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); });
+    var nuevo = tx.indexOf('view=guardar')>-1;
+    if(nuevo) caja('ok','1) Página del tablero (index.html)','Está la versión NUEVA.');
+    else { caja('mal','1) Página del tablero (index.html)','Está la versión VIEJA. Hay que volver a pegar el index.html nuevo en GitHub y hacer Commit.'); problemas.push('El index.html de GitHub es viejo.'); }
+  }catch(e){ caja('aviso','1) Página del tablero (index.html)','No pude leer index.html desde acá ('+e.message+'). Abrí este diagnóstico desde la misma carpeta que el tablero.'); }
+
+  // 2. versión del servidor
+  var r2=await jsonp(URL_BASE+'?view=info',30000);
+  if(r2.falla){ caja('mal','2) Servidor (Apps Script)',r2.falla); problemas.push('El servidor no responde: '+r2.falla); }
+  else {
+    var m=(r2.datos&&r2.datos.mensaje)||'?';
+    if(/v13/.test(m)) caja('ok','2) Servidor (Apps Script)','Versión: '+m+'  ('+r2.seg+' s)');
+    else { caja('mal','2) Servidor (Apps Script)','Versión: '+m+'  ('+r2.seg+' s)\nNO es la v13. Falta publicar: Implementar > Administrar implementaciones > lápiz > Nueva versión > Implementar.'); problemas.push('El servidor NO es la v13 ('+m+').'); }
+  }
+
+  // 3. datos de Odoo
+  var r3=await jsonp(URL_BASE+'?view=horaxhora&fresh=1',90000);
+  if(r3.falla){ caja('mal','3) Datos de Odoo',r3.falla); problemas.push('Los datos de Odoo no llegan: '+r3.falla); }
+  else if(!r3.datos.ok){ caja('mal','3) Datos de Odoo','El servidor respondió con este error ('+r3.seg+' s):\n'+r3.datos.error); problemas.push('Error de datos: '+r3.datos.error); }
+  else {
+    var D=r3.datos, op=(D.operarios||[]).length;
+    var tipo = r3.seg>20 ? 'aviso' : 'ok';
+    caja(tipo,'3) Datos de Odoo','Llegaron '+op+' operarios en '+r3.seg+' s.\nFecha: '+D.fecha+'  Hora: '+D.hora+'\nCampo nombre de pedido: '+(D.campoPedido||'(ninguno)'));
+    if(r3.seg>20) problemas.push('Odoo tarda '+r3.seg+' s (lento).');
+  }
+
+  // 4. segunda lectura (debe ser instantánea por estar guardada)
+  var r4=await jsonp(URL_BASE+'?view=horaxhora',30000);
+  if(r4.falla) caja('mal','4) Lectura rápida',r4.falla);
+  else if(r4.datos&&r4.datos.ok) caja(r4.seg<=6?'ok':'aviso','4) Lectura rápida','Respondió en '+r4.seg+' s (edad de los datos: '+r4.datos.edad+' s).');
+  else caja('aviso','4) Lectura rápida','Respondió con error: '+(r4.datos&&r4.datos.error));
+
+  // 5. guardado
+  var pl={tipo:'gap_ack',operario:'PRUEBA-DIAGNOSTICO',desde:'00:00',minutos:0,accion:'prueba'};
+  var r5=await jsonp(URL_BASE+'?view=guardar&payload='+encodeURIComponent(JSON.stringify(pl)),30000);
+  if(r5.falla){ caja('mal','5) Guardar en la hoja',r5.falla); problemas.push('No puede guardar: '+r5.falla); }
+  else if(r5.datos&&r5.datos.ok) caja('ok','5) Guardar en la hoja','Se guardó y el servidor lo confirmó ('+r5.seg+' s). (Quedó una fila de prueba en la hoja "Inactividad".)');
+  else { caja('mal','5) Guardar en la hoja','El servidor respondió: '+JSON.stringify(r5.datos)); problemas.push('Guardar falló: '+JSON.stringify(r5.datos)); }
+
+  var res=document.getElementById('resumen');
+  if(problemas.length){ res.style.color='#ff8f86'; res.textContent='PROBLEMAS ENCONTRADOS:\n- '+problemas.join('\n- '); res.style.whiteSpace='pre-wrap'; }
+  else { res.style.color='#22c55e'; res.textContent='TODO FUNCIONA. Si el tele sigue mal, es la caché del navegador del stick.'; }
+  b.disabled=false; b.textContent='▶ Repetir diagnóstico';
+}
+</script>
+</body>
+</html>
