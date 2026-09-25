@@ -300,14 +300,14 @@ function jornadaMin(a,b,segs){ var t=0; segs.forEach(function(s){ var x=Math.max
 function pct(min,D){ return Math.max(0,Math.min(100,(min-D.iniDia)/(D.finDia-D.iniDia)*100)); }
 
 // JSONP con tiempo límite: si el servidor no responde avisa en vez de esperar para siempre
-function jsonp_(url,onData,onError){
+function jsonp_(url,onData,onError,ms){
   var cb='jsonp_cb_'+(new Date().getTime())+'_'+Math.floor(Math.random()*1e6);
   var sc=document.createElement('script');
   var terminado=false, timer=null;
   var limpiar=function(){ terminado=true; if(timer) clearTimeout(timer); try{ delete window[cb]; }catch(e){ window[cb]=undefined; } if(sc.parentNode) sc.parentNode.removeChild(sc); };
   window[cb]=function(d){ if(terminado) return; limpiar(); onData(d); };
   sc.onerror=function(){ if(terminado) return; limpiar(); onError(new Error('sin respuesta del servidor')); };
-  timer=setTimeout(function(){ if(terminado) return; limpiar(); onError(new Error('el servidor tardó más de 60 s en responder')); }, 60000);
+  timer=setTimeout(function(){ if(terminado) return; limpiar(); onError(new Error('el servidor tardó más de '+Math.round((ms||60000)/1000)+' s en responder')); }, ms||60000);
   sc.src=url+(url.indexOf('?')>-1?'&':'?')+'callback='+cb;
   document.body.appendChild(sc);
 }
@@ -371,6 +371,36 @@ try{ ACKS = JSON.parse(localStorage.getItem('hxh_acks')||'{}'); }catch(e){}
 var ULTIMO = null;
 var ALARMAS = [];             // alarmas sin reconocer (para sonido)
 
+// validaciones de hoy guardadas también en este navegador (no se pierden al recargar)
+try{ var _lv=JSON.parse(localStorage.getItem('hxh_vals')||'null'); if(_lv && _lv.fecha===fechaOffset(0)) VALIDACIONES_HOY=_lv.v||{}; }catch(e){}
+function guardarLocalVals(){
+  try{ if(offsetDias===0) localStorage.setItem('hxh_vals', JSON.stringify({ fecha:fechaOffset(0), v:VALIDACIONES_HOY })); }catch(e){}
+}
+
+// guardado en el servidor CON confirmación: reintenta 3 veces y, si no puede, queda en cola y se sigue intentando
+var PEND = [];
+try{ PEND = JSON.parse(localStorage.getItem('hxh_pend')||'[]'); }catch(e){}
+function guardarPend(){ try{ localStorage.setItem('hxh_pend', JSON.stringify(PEND)); }catch(e){} }
+function enviarRemoto(payload, ok, fail, intento){
+  intento = intento||1;
+  jsonp_(URL_BASE+'?view=guardar&payload='+encodeURIComponent(JSON.stringify(payload))+'&t='+(new Date().getTime()), function(R){
+    if(R && R.ok){ ok(R); return; }
+    if(intento<3) setTimeout(function(){ enviarRemoto(payload,ok,fail,intento+1); },1200);
+    else fail((R&&R.error)||'el servidor no confirmó');
+  }, function(e){
+    if(intento<3) setTimeout(function(){ enviarRemoto(payload,ok,fail,intento+1); },1200);
+    else fail(e.message);
+  }, 20000);
+}
+var REINT=false;
+function reintentarPend(){
+  if(REINT || !PEND.length) return;
+  REINT=true;
+  var p=PEND[0];
+  enviarRemoto(p, function(){ PEND.shift(); guardarPend(); REINT=false; reintentarPend(); }, function(){ REINT=false; }, 3);
+}
+setInterval(reintentarPend, 8000);
+
 /* ================== MODAL ================== */
 function cerrarDet(){ document.getElementById('sheet').classList.remove('on'); document.getElementById('shade').classList.remove('on'); }
 function abrirSheet(){ document.getElementById('sheet').classList.add('on'); document.getElementById('shade').classList.add('on'); }
@@ -413,13 +443,19 @@ function validar(codigo){
   if (inef && !causal) { st.textContent = '⚠ Elegí el causal de la ineficiencia'; st.style.color = 'var(--rojo)'; return; }
   var payload = { tipo:'validacion', mo:CUR.mo, operario:CUR.opn, wo:CUR.wo, wof:CUR.wof, obj_min:CUR.obj, real_min:Math.round(CUR.rmin),
     validacion:codigo, nota:(document.getElementById('shNota')||{}).value||'', causal:causal };
+  // se muestra validada al instante y se confirma con el servidor
+  VALIDACIONES_HOY[String(CUR.wof)] = { validacion:codigo, causal:causal, nota:payload.nota };
+  guardarLocalVals();
+  if(ULTIMO) render(ULTIMO);
   st.textContent = 'guardando…'; st.style.color = 'var(--muted)';
-  fetch(URL_BASE, { method:'POST', mode:'no-cors', body:JSON.stringify(payload) }).then(function(){
-    st.textContent = '✓ Guardado'; st.style.color = 'var(--verde)';
-    VALIDACIONES_HOY[String(CUR.wof)] = { validacion:codigo, causal:causal };
-    setTimeout(function(){ cerrarDet(); if(ULTIMO) render(ULTIMO); }, 600);
-    setTimeout(function(){ cargar(true); }, 1500);
-  }).catch(function(e){ st.textContent = 'Error: ' + e; st.style.color = 'var(--rojo)'; });
+  enviarRemoto(payload, function(){
+    st.textContent = '✓ Guardado en el servidor'; st.style.color = 'var(--verde)';
+    setTimeout(cerrarDet, 500);
+  }, function(msg){
+    PEND.push(payload); guardarPend();
+    st.textContent = '⚠ No se pudo guardar ('+msg+'). Queda en cola y se reintenta solo.'; st.style.color = 'var(--rojo)';
+    setTimeout(cerrarDet, 2500);
+  });
 }
 
 /* ---- alarma: operario presente sin tarea ---- */
@@ -440,7 +476,8 @@ function ackAlarma(clave,i){
   var info = ALARMAS_INFO[clave]; var accion = ACCIONES[i].code;
   ACKS[clave] = { accion:accion, ts:Date.now() };
   try{ localStorage.setItem('hxh_acks', JSON.stringify(ACKS)); }catch(e){}
-  try{ fetch(URL_BASE, { method:'POST', mode:'no-cors', body:JSON.stringify({ tipo:'gap_ack', operario:info.nom, desde:hhmm(info.desde), minutos:info.min, accion:accion }) }); }catch(e){}
+  var pl = { tipo:'gap_ack', operario:info.nom, desde:hhmm(info.desde), minutos:info.min, accion:accion };
+  enviarRemoto(pl, function(){}, function(){ PEND.push(pl); guardarPend(); });
   cerrarDet();
   if(ULTIMO) render(ULTIMO);
 }
@@ -646,9 +683,8 @@ function cargar(fresh){
     try{ localStorage.setItem('hxh_last', JSON.stringify(D)); }catch(e){}
     if(ULTIMO && ULTIMO.fecha!==D.fecha) VALIDACIONES_HOY={};
     (D.validaciones||[]).forEach(function(v){ VALIDACIONES_HOY[String(v.wof)] = v; });
+    guardarLocalVals();
     render(D);
-    // si lo guardado en el servidor tiene más de 20 s, se pide el dato nuevo a Odoo en segundo plano
-    if(!fresh && !D.hist && D.edad>20) setTimeout(function(){ cargar(true); },50);
   }, function(e){ CARGANDO=false; mostrarError(e.message); estadoCarga('No se pudo conectar: '+e.message); if(!ULTIMO) recuperarUltimo(); });
 }
 function recuperarUltimo(){
@@ -658,7 +694,7 @@ function recuperarUltimo(){
   }catch(e){}
 }
 
-// validaciones y avisos compartidos entre pantallas (se consulta cada 5 s, es una lectura liviana)
+// validaciones y avisos compartidos entre pantallas (se consulta cada 4 s, es una lectura liviana)
 var SINC_ENV=false, SINC_T=0;
 function sincronizar(){
   if(!ULTIMO) return;
@@ -680,6 +716,7 @@ function sincronizar(){
     });
     if(cambio){
       try{ localStorage.setItem('hxh_acks', JSON.stringify(ACKS)); }catch(e){}
+      guardarLocalVals();
       render(ULTIMO);
     }
   }, function(){ SINC_ENV=false; });
@@ -687,8 +724,8 @@ function sincronizar(){
 
 aplicarFiltro();
 cargar();
-setInterval(function(){ cargar(false); }, 10000);
-setInterval(sincronizar, 5000);
+setInterval(function(){ cargar(false); }, 8000);
+setInterval(sincronizar, 4000);
 // si pasan 5 minutos sin datos buenos, la página se recarga sola
 setInterval(function(){ if(((new Date()).getTime()-ULTIMO_OK)>300000){ location.reload(); } }, 30000);
 
